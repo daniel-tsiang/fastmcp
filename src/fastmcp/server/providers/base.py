@@ -30,7 +30,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
-from contextvars import ContextVar
 from functools import partial
 from typing import TYPE_CHECKING, Literal, cast
 
@@ -48,17 +47,11 @@ from fastmcp.utilities.versions import VersionSpec, version_sort_key
 if TYPE_CHECKING:
     from fastmcp.server.transforms import Transform
 
-# When set to True, Provider.get_tool() bypasses the transform chain
-# (Namespace, ToolTransform, etc.) and calls _get_tool() directly.
-# Used by FastMCP.call_tool() when resolving app tool global keys —
-# these keys are stable identifiers that must not be transformed.
-_APP_TOOL_CALL: ContextVar[bool] = ContextVar("_APP_TOOL_CALL", default=False)
-
-# Module-level registry mapping app tool global keys to their local names.
+# Module-level registry mapping app tool global keys to Tool objects.
 # Populated by _maybe_generate_app_global_key when tools with "app" in
 # their visibility are registered. Checked by FastMCP.call_tool() to
-# resolve global keys without going through the transform chain.
-_APP_TOOL_REGISTRY: dict[str, str] = {}
+# resolve and execute tools directly, bypassing the transform chain.
+_APP_TOOL_REGISTRY: dict[str, Tool] = {}
 
 
 class Provider:
@@ -171,11 +164,6 @@ class Provider:
         (FastMCP) performs enabled filtering after all transforms complete,
         allowing session-level transforms to override provider-level disables.
 
-        When ``_APP_TOOL_CALL`` is set, the transform chain is bypassed
-        entirely and ``_get_tool`` is called directly. This is used for
-        app tool global key resolution where transforms must not alter
-        the lookup name.
-
         Args:
             name: The transformed tool name to look up.
             version: Optional version filter. If None, returns highest version.
@@ -183,8 +171,6 @@ class Provider:
         Returns:
             The tool if found (may be marked disabled), None if not found.
         """
-        if _APP_TOOL_CALL.get():
-            return await self._get_tool(name, version)
 
         async def base(n: str, version: VersionSpec | None = None) -> Tool | None:
             return await self._get_tool(n, version)

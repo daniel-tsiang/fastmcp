@@ -147,7 +147,7 @@ def _maybe_generate_app_global_key(tool: Tool) -> None:
 
     global_key = f"{tool.name}-{uuid.uuid4().hex[:8]}"
     ui["globalKey"] = global_key
-    _APP_TOOL_REGISTRY[global_key] = tool.name
+    _APP_TOOL_REGISTRY[global_key] = tool
 
 
 def _maybe_apply_prefab_ui(provider: LocalProvider, tool: Tool) -> None:

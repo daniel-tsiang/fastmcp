@@ -9,8 +9,8 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import NotFoundError
 from fastmcp.server.apps import AppConfig
 from fastmcp.server.auth import AuthContext
-from fastmcp.server.providers.base import _APP_TOOL_CALL, _APP_TOOL_REGISTRY
-from fastmcp.tools.tool import ToolResult
+from fastmcp.server.providers.base import _APP_TOOL_REGISTRY
+from fastmcp.tools.tool import Tool, ToolResult
 
 
 def _get_text(result: ToolResult) -> str:
@@ -80,7 +80,7 @@ class TestGlobalKeyGeneration:
 
         assert len(_APP_TOOL_REGISTRY) == 0
 
-    def test_global_key_maps_to_local_name(self):
+    def test_global_key_maps_to_tool_object(self):
         mcp = FastMCP("test")
 
         @mcp.tool(app=AppConfig(resource_uri="ui://app/view.html", visibility=["app"]))
@@ -88,7 +88,9 @@ class TestGlobalKeyGeneration:
             return "done"
 
         key = next(iter(_APP_TOOL_REGISTRY))
-        assert _APP_TOOL_REGISTRY[key] == "action"
+        tool = _APP_TOOL_REGISTRY[key]
+        assert isinstance(tool, Tool)
+        assert tool.name == "action"
 
     def test_two_tools_get_different_keys(self):
         mcp = FastMCP("test")
@@ -209,22 +211,22 @@ class TestCallToolMounted:
         result = await server_a.call_tool(global_key, {})
         assert _get_text(result) == "from C"
 
-    async def test_duplicate_servers_no_collision(self):
-        """Two identical servers mounted get different global keys."""
+    async def test_same_name_tools_on_different_children(self):
+        """Two children with the same tool name resolve to correct child."""
 
-        def make_child() -> FastMCP:
+        def make_child(val: str) -> FastMCP:
             child = FastMCP("child")
 
             @child.tool(
                 app=AppConfig(resource_uri="ui://app/view.html", visibility=["app"])
             )
             def action() -> str:
-                return "done"
+                return val
 
             return child
 
-        child1 = make_child()
-        child2 = make_child()
+        child1 = make_child("from-child1")
+        child2 = make_child("from-child2")
 
         parent = FastMCP("parent")
         parent.mount(child1, namespace="a")
@@ -232,7 +234,13 @@ class TestCallToolMounted:
 
         keys = list(_APP_TOOL_REGISTRY.keys())
         assert len(keys) == 2
-        assert keys[0] != keys[1]
+
+        results = set()
+        for k in keys:
+            result = await parent.call_tool(k, {})
+            results.add(_get_text(result))
+
+        assert results == {"from-child1", "from-child2"}
 
     async def test_mount_without_namespace(self):
         """Global keys work even without a namespace."""
@@ -323,50 +331,3 @@ class TestAuthWithGlobalKeys:
 
         with pytest.raises(NotFoundError):
             await mcp.call_tool(global_key, {})
-
-
-# ---------------------------------------------------------------------------
-# ContextVar safety
-# ---------------------------------------------------------------------------
-
-
-class TestContextVarSafety:
-    async def test_contextvar_reset_after_call(self):
-        """_APP_TOOL_CALL must be False after a global key call completes."""
-        mcp = FastMCP("test")
-
-        @mcp.tool(app=AppConfig(resource_uri="ui://app/view.html", visibility=["app"]))
-        def check() -> str:
-            return "ok"
-
-        global_key = next(iter(_APP_TOOL_REGISTRY))
-        await mcp.call_tool(global_key, {})
-        assert _APP_TOOL_CALL.get() is False
-
-    async def test_contextvar_reset_on_error(self):
-        """_APP_TOOL_CALL must be reset even if the tool raises."""
-        mcp = FastMCP("test")
-
-        @mcp.tool(app=AppConfig(resource_uri="ui://app/view.html", visibility=["app"]))
-        def failing() -> str:
-            raise ValueError("boom")
-
-        global_key = next(iter(_APP_TOOL_REGISTRY))
-        with pytest.raises(Exception):
-            await mcp.call_tool(global_key, {})
-        assert _APP_TOOL_CALL.get() is False
-
-    async def test_normal_call_does_not_set_contextvar(self):
-        """Regular tool calls must not trigger _APP_TOOL_CALL."""
-        mcp = FastMCP("test")
-
-        called_with_flag = None
-
-        @mcp.tool
-        def probe() -> str:
-            nonlocal called_with_flag
-            called_with_flag = _APP_TOOL_CALL.get()
-            return "ok"
-
-        await mcp.call_tool("probe", {})
-        assert called_with_flag is False
