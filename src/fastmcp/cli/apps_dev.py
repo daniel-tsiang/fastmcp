@@ -959,6 +959,8 @@ def _build_picker_html(tools: list[dict[str, Any]]) -> str:
         from prefab_ui.actions import Fetch, OpenLink, SetState, ShowToast
         from prefab_ui.app import PrefabApp
         from prefab_ui.components import (
+            Accordion,
+            AccordionItem,
             Button,
             Column,
             Heading,
@@ -991,7 +993,7 @@ def _build_picker_html(tools: list[dict[str, Any]]) -> str:
     def _tool_title(tool: dict[str, Any]) -> str:
         return tool.get("title") or tool["name"]
 
-    with Column(gap=6, css_class="p-8 max-w-lg mx-auto") as view:
+    with Column(gap=6, css_class="p-8 max-w-2xl mx-auto") as view:
         Heading("FastMCP Apps")
 
         if len(tools) > 1:
@@ -1030,7 +1032,17 @@ def _build_picker_html(tools: list[dict[str, Any]]) -> str:
 
                 with Page(name, value=name), Column(gap=4):
                     if desc:
-                        Markdown(desc, css_class="pb-2 text-sm text-muted-foreground")
+                        # Show the first paragraph inline; collapse the
+                        # rest into an expandable accordion.
+                        parts = desc.split("\n\n", 1)
+                        md_css = "text-sm text-muted-foreground"
+                        Muted(parts[0])
+                        if len(parts) > 1:
+                            with (
+                                Accordion(collapsible=True, css_class=md_css),
+                                AccordionItem(title="Details"),
+                            ):
+                                Markdown(parts[1])
                     with Tabs(variant="line"):
                         with (
                             Tab("Form"),
