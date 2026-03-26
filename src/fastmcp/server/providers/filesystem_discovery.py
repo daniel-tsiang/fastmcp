@@ -140,6 +140,8 @@ def import_module_from_file(
         ImportError: If the module cannot be imported.
     """
     file_path = file_path.resolve()
+    if provider_root is not None:
+        provider_root = provider_root.resolve()
 
     # Check if this file is part of a package
     package_root = _find_package_root(file_path, stop_at=provider_root)

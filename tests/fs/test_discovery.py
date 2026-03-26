@@ -7,7 +7,6 @@ from fastmcp.prompts.base import Prompt
 from fastmcp.resources.base import Resource
 from fastmcp.resources.template import FunctionResourceTemplate, ResourceTemplate
 from fastmcp.server.providers.filesystem_discovery import (
-    _find_package_root,
     discover_and_import,
     discover_files,
     extract_components,
@@ -513,7 +512,7 @@ class TestImportMachineryFixes:
         """A provider file named json.py must not overwrite sys.modules['json']."""
         import json as stdlib_json
 
-        saved = sys.modules.get("json")
+        saved = sys.modules["json"]
         try:
             (tmp_path / "json.py").write_text(
                 "from fastmcp.tools import tool\n@tool\ndef parse(): return 'provider'"
@@ -521,11 +520,14 @@ class TestImportMachineryFixes:
             import_module_from_file(tmp_path / "json.py")
             assert sys.modules.get("json") is stdlib_json
         finally:
-            if saved is not None:
-                sys.modules["json"] = saved
+            sys.modules["json"] = saved
 
     def test_same_stem_files_get_independent_modules(self, tmp_path: Path):
-        """Two files with the same stem in different directories must not collide in sys.modules."""
+        """Two files with the same stem in different directories must not collide in sys.modules.
+
+        The first-imported file keeps the bare stem key; the second gets a private key.
+        Both modules must be independently accessible with correct content.
+        """
         dir_a = tmp_path / "a"
         dir_b = tmp_path / "b"
         dir_a.mkdir()
@@ -538,19 +540,39 @@ class TestImportMachineryFixes:
 
         assert mod_a.ORIGIN == "a"
         assert mod_b.ORIGIN == "b"
+        # The first module retains the bare stem key; the second uses a private key.
+        # They must be distinct objects — the second import must not have clobbered the first.
+        assert mod_a is not mod_b
+        assert sys.modules.get("helpers") is not mod_b
 
     def test_package_root_bounded_by_provider_root(self, tmp_path: Path):
-        """_find_package_root must not walk above stop_at even when ancestors have __init__.py."""
+        """When the provider root is nested inside a larger package, import_module_from_file
+        with provider_root must not escape into ancestor packages.
+
+        The generated module name should be relative to the provider root (e.g. "myprovider.tools"),
+        not to an ancestor package (e.g. "myproject.myprovider.tools"), and tmp_path (the
+        ancestor's parent) must not be added to sys.path.
+        """
+        # Use a name that won't collide with any installed package
         project = tmp_path / "myproject"
         project.mkdir()
         (project / "__init__.py").write_text("")
-        mcp = project / "mcp"
-        mcp.mkdir()
-        (mcp / "__init__.py").write_text("")
-        (mcp / "tools.py").write_text("")
+        provider = project / "myprovider"
+        provider.mkdir()
+        (provider / "__init__.py").write_text("")
+        (provider / "tools.py").write_text("VALUE = 42")
 
-        found = _find_package_root(mcp / "tools.py", stop_at=mcp)
-        assert found == mcp
+        path_before = set(sys.path)
+        mod = import_module_from_file(provider / "tools.py", provider_root=provider)
+        path_after = set(sys.path)
+
+        # Module was correctly imported
+        assert mod.VALUE == 42
+        # sys.path should not contain tmp_path (the ancestor's grandparent);
+        # that would only happen if the package root escaped past the provider boundary
+        assert str(tmp_path) not in (path_after - path_before)
+        # The module name is bounded to the provider root, not "myproject.myprovider.tools"
+        assert mod.__name__ == "myprovider.tools"
 
     def test_non_package_reload_returns_updated_content(self, tmp_path: Path):
         """Re-importing a non-package file should reflect file changes (exec_module path)."""
