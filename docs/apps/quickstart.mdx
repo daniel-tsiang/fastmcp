@@ -10,7 +10,7 @@ import { VersionBadge } from '/snippets/version-badge.mdx'
 
 <VersionBadge version="3.2.0" />
 
-MCP tools normally return text. FastMCP apps return interactive UIs — charts, tables, forms, dashboards — rendered directly in the conversation. The easiest way to build one is with [Prefab UI](https://prefab.prefect.io), a Python component library designed for exactly this. You describe the UI in Python; Prefab compiles it to something the host can render.
+MCP tools normally return text. FastMCP apps return interactive UIs rendered directly in the conversation: charts, tables, forms, dashboards. The easiest way to build one is with [Prefab UI](https://prefab.prefect.io), a Python component library designed for exactly this. You describe the UI in Python; Prefab compiles it to something the host can render.
 
 This tutorial builds a working app from scratch.
 
@@ -24,7 +24,7 @@ pip install "fastmcp[apps]"
 
 ## A Tool That Returns a UI
 
-When your tool has something to *show* — a table of results, a chart, a status dashboard — you can return an interactive UI instead of text. Build the visualization with Prefab components, return it from your tool, and set `app=True` so FastMCP knows to render it. The user sees a live, interactive widget right in the conversation instead of a wall of JSON.
+When your tool has something to *show* (a table of results, a chart, a status dashboard) you can return an interactive UI instead of text. Build the visualization with Prefab components, return it from your tool, and set `app=True` so FastMCP knows to render it. The user sees a live, interactive widget right in the conversation instead of a wall of JSON.
 
 Create `server.py`:
 
@@ -63,13 +63,13 @@ def team_directory() -> PrefabApp:
     return app
 ```
 
-That `app=True` is doing a lot behind the scenes. It tells FastMCP to set up everything the MCP Apps protocol requires — the renderer resource, the content security policy, the metadata that tells the host "this tool returns a UI." Without it, you'd wire all of that up by hand. With it, you just return Prefab components and FastMCP handles the rest. The host (Claude Desktop, Goose, etc.) loads the result in a sandboxed iframe where the user can sort columns, search, and interact — all client-side, no round-trips to your server.
+That `app=True` is doing a lot behind the scenes. It tells FastMCP to set up everything the MCP Apps protocol requires: the renderer resource, the content security policy, the metadata that tells the host "this tool returns a UI." Without it, you'd wire all of that up by hand. With it, you just return Prefab components and FastMCP handles the rest. The host (Claude Desktop, Goose, etc.) loads the result in a sandboxed iframe where the user can sort columns, search, and interact, all client-side with no round-trips to your server.
 
-The Prefab code itself reads top-to-bottom like a document. `PrefabApp()` is the root container — everything inside its `with` block becomes the app's UI. `Column` arranges children vertically. `Heading` renders a title. `DataTable` takes rows of data and column definitions, and gives you sorting and search for free. The `with` blocks establish parent-child relationships — nesting components inside each other builds the layout tree.
+The Prefab code itself reads top-to-bottom like a document. `PrefabApp()` is the root container and everything inside its `with` block becomes the app's UI. `Column` arranges children vertically. `Heading` renders a title. `DataTable` takes rows of data and column definitions, and gives you sorting and search for free. The `with` blocks establish parent-child relationships: nesting components inside each other builds the layout tree.
 
 ## Running It
 
-FastMCP includes a dev server that renders your app tools in a browser — no MCP host needed:
+FastMCP includes a dev server that renders your app tools in a browser, no MCP host needed:
 
 ```bash
 fastmcp dev apps server.py
@@ -83,9 +83,9 @@ This opens `http://localhost:8080` where you can pick a tool and see the rendere
 
 ## Making It Reactive
 
-The table above is a static snapshot — it renders once from the data your Python code provides. But Prefab apps can also respond to user input in real time, without any server round-trips.
+The table above is a static snapshot that renders once from the data your Python code provides. But Prefab apps can also respond to user input in real time, without any server round-trips.
 
-The key concept is **state**: a client-side key-value store. Components can read from state (to decide what to display) and write to state (when the user interacts). Because state lives in the browser, updates are instant.
+The key concept is **state**: a client-side key-value store. Components can read from state (to decide what to display) and write to state (when the user interacts). Because state lives in the browser, updates are instant. See the [Prefab reactivity docs](https://prefab.prefect.io/docs/concepts/expressions) for the full expression language.
 
 Here's the same directory with a dropdown filter:
 
@@ -145,14 +145,14 @@ def team_directory() -> PrefabApp:
                     rows=[m for m in MEMBERS if m["office"] == "San Francisco"],
                     search=True,
                 )
-                Muted("Client-side filtering — the full dataset is in the browser.")
+                Muted("Client-side filtering. The full dataset is in the browser.")
 
     return app
 ```
 
 Three new ideas here:
 
-**`Rx("office")`** creates a reactive reference to the `office` key in state. It doesn't hold a Python value — it compiles to a browser-side expression that evaluates live as state changes.
+**`Rx("office")`** creates a reactive reference to the `office` key in state. It doesn't hold a Python value. It compiles to a browser-side expression that evaluates live as state changes.
 
 **`Select(name="office")`** binds the dropdown to the `office` state key. Every time the user picks a new option, `office` updates instantly in the browser.
 
@@ -162,10 +162,10 @@ The `state` dict on `PrefabApp` sets initial values when the app loads. Run `fas
 
 ## Next Steps
 
-You've built a tool that returns an interactive, reactive UI. This pattern — build a visualization in Prefab, return it from a tool — covers a huge range of use cases: dashboards, charts, data tables, status displays.
+You've built a tool that returns an interactive, reactive UI. This pattern covers a huge range of use cases: build a visualization in Prefab, return it from a tool, and the user gets dashboards, charts, data tables, and status displays right in the conversation.
 
-When you need the UI to talk back to your server — forms that save data, buttons that trigger actions, search that queries a database — you promote the tool to a **[FastMCPApp](/apps/interactive-apps)**. That gives you managed backend tools, automatic visibility control, and stable routing so your UI's button clicks reach the right server-side code.
+When you need the UI to talk back to your server (forms that save data, buttons that trigger actions, search that queries a database) you promote the tool to a **[FastMCPApp](/apps/interactive-apps)**. That gives you managed backend tools, automatic visibility control, and stable routing so your UI's button clicks reach the right server-side code.
 
-- **[Prefab UI](/apps/prefab)** — the full component library: charts, forms, badges, progress bars, and the reactive state system in depth.
-- **[FastMCPApp](/apps/interactive-apps)** — when your UI needs to interact with backend logic.
-- **[App Providers](/apps/providers/approval)** — ready-made capabilities you can add with a single `add_provider()` call.
+- **[Prefab UI](/apps/prefab)** covers the full component library: charts, forms, badges, progress bars, and the [reactive state system](https://prefab.prefect.io/docs/concepts/state) in depth.
+- **[FastMCPApp](/apps/interactive-apps)** is the next step when your UI needs to interact with backend logic.
+- **[App Providers](/apps/providers/approval)** are ready-made capabilities you can add with a single `add_provider()` call.
