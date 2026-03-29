@@ -24,7 +24,7 @@ pip install "fastmcp[apps]"
 
 ## A Tool That Returns a UI
 
-Any FastMCP tool can return a UI instead of text. The mechanism is simple: set `app=True` on the tool decorator, and return a `PrefabApp` instead of a string or dict.
+When your tool has something to *show* — a table of results, a chart, a status dashboard — you can return an interactive UI instead of text. Build the visualization with Prefab components, return it from your tool, and set `app=True` so FastMCP knows to render it. The user sees a live, interactive widget right in the conversation instead of a wall of JSON.
 
 Create `server.py`:
 
@@ -162,8 +162,10 @@ The `state` dict on `PrefabApp` sets initial values when the app loads. Run `fas
 
 ## Next Steps
 
-You've built a tool that returns an interactive, reactive UI. From here:
+You've built a tool that returns an interactive, reactive UI. This pattern — build a visualization in Prefab, return it from a tool — covers a huge range of use cases: dashboards, charts, data tables, status displays.
 
-- **[Prefab UI](/apps/prefab)** covers the full component library — charts, forms, badges, progress bars, and the reactive state system in depth.
-- **[FastMCPApp](/apps/interactive-apps)** adds server interaction — forms that save data, search that queries a database, backend tools the UI can call.
-- **[App Providers](/apps/providers/approval)** are ready-made capabilities you can add to any server with `add_provider()` — approval gates, file uploads, form builders.
+When you need the UI to talk back to your server — forms that save data, buttons that trigger actions, search that queries a database — you promote the tool to a **[FastMCPApp](/apps/interactive-apps)**. That gives you managed backend tools, automatic visibility control, and stable routing so your UI's button clicks reach the right server-side code.
+
+- **[Prefab UI](/apps/prefab)** — the full component library: charts, forms, badges, progress bars, and the reactive state system in depth.
+- **[FastMCPApp](/apps/interactive-apps)** — when your UI needs to interact with backend logic.
+- **[App Providers](/apps/providers/approval)** — ready-made capabilities you can add with a single `add_provider()` call.
