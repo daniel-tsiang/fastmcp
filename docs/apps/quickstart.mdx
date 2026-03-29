@@ -47,24 +47,25 @@ def team_directory() -> PrefabApp:
         {"name": "Eva Mueller", "role": "Engineer", "office": "Berlin"},
     ]
 
-    with Column(gap=4, css_class="p-6") as view:
-        Heading("Team Directory")
-        DataTable(
-            columns=[
-                DataTableColumn(key="name", header="Name", sortable=True),
-                DataTableColumn(key="role", header="Role", sortable=True),
-                DataTableColumn(key="office", header="Office", sortable=True),
-            ],
-            rows=members,
-            search=True,
-        )
+    with PrefabApp() as app:
+        with Column(gap=4, css_class="p-6"):
+            Heading("Team Directory")
+            DataTable(
+                columns=[
+                    DataTableColumn(key="name", header="Name", sortable=True),
+                    DataTableColumn(key="role", header="Role", sortable=True),
+                    DataTableColumn(key="office", header="Office", sortable=True),
+                ],
+                rows=members,
+                search=True,
+            )
 
-    return PrefabApp(view=view)
+    return app
 ```
 
-That `app=True` is doing the important work. It tells FastMCP that this tool's return value should be rendered as an interactive UI, not serialized as text. The host (Claude Desktop, Goose, etc.) loads the result in a sandboxed iframe where the user can sort columns, search, and interact — all client-side, no round-trips to your server.
+That `app=True` is doing a lot behind the scenes. It tells FastMCP to set up everything the MCP Apps protocol requires — the renderer resource, the content security policy, the metadata that tells the host "this tool returns a UI." Without it, you'd wire all of that up by hand. With it, you just return Prefab components and FastMCP handles the rest. The host (Claude Desktop, Goose, etc.) loads the result in a sandboxed iframe where the user can sort columns, search, and interact — all client-side, no round-trips to your server.
 
-The Prefab code itself reads top-to-bottom like a document. `Column` is a vertical layout container. `Heading` renders a title. `DataTable` takes rows of data and column definitions, and gives you sorting and search for free. The `with` blocks establish parent-child relationships — everything inside `with Column(...) as view` becomes a child of that column.
+The Prefab code itself reads top-to-bottom like a document. `PrefabApp()` is the root container — everything inside its `with` block becomes the app's UI. `Column` arranges children vertically. `Heading` renders a title. `DataTable` takes rows of data and column definitions, and gives you sorting and search for free. The `with` blocks establish parent-child relationships — nesting components inside each other builds the layout tree.
 
 ## Running It
 
@@ -114,38 +115,39 @@ OFFICES = sorted({m["office"] for m in MEMBERS})
 @mcp.tool(app=True)
 def team_directory() -> PrefabApp:
     """Browse the team directory with office filtering."""
-    with Column(gap=4, css_class="p-6") as view:
-        with Row(gap=2, align="center"):
-            Heading("Team Directory")
-            Badge(f"{len(MEMBERS)} people", variant="secondary")
+    with PrefabApp(state={"office": "all"}) as app:
+        with Column(gap=4, css_class="p-6"):
+            with Row(gap=2, align="center"):
+                Heading("Team Directory")
+                Badge(f"{len(MEMBERS)} people", variant="secondary")
 
-        with Select(name="office", label="Filter by Office"):
-            SelectOption("All Offices", value="all")
-            for office in OFFICES:
-                SelectOption(office, value=office)
+            with Select(name="office", label="Filter by Office"):
+                SelectOption("All Offices", value="all")
+                for office in OFFICES:
+                    SelectOption(office, value=office)
 
-        with If(Rx("office") == "all"):
-            DataTable(
-                columns=[
-                    DataTableColumn(key="name", header="Name", sortable=True),
-                    DataTableColumn(key="role", header="Role", sortable=True),
-                    DataTableColumn(key="office", header="Office", sortable=True),
-                ],
-                rows=MEMBERS,
-                search=True,
-            )
-        with Else():
-            DataTable(
-                columns=[
-                    DataTableColumn(key="name", header="Name", sortable=True),
-                    DataTableColumn(key="role", header="Role", sortable=True),
-                ],
-                rows=[m for m in MEMBERS if m["office"] == "San Francisco"],
-                search=True,
-            )
-            Muted("Client-side filtering — the full dataset is in the browser.")
+            with If(Rx("office") == "all"):
+                DataTable(
+                    columns=[
+                        DataTableColumn(key="name", header="Name", sortable=True),
+                        DataTableColumn(key="role", header="Role", sortable=True),
+                        DataTableColumn(key="office", header="Office", sortable=True),
+                    ],
+                    rows=MEMBERS,
+                    search=True,
+                )
+            with Else():
+                DataTable(
+                    columns=[
+                        DataTableColumn(key="name", header="Name", sortable=True),
+                        DataTableColumn(key="role", header="Role", sortable=True),
+                    ],
+                    rows=[m for m in MEMBERS if m["office"] == "San Francisco"],
+                    search=True,
+                )
+                Muted("Client-side filtering — the full dataset is in the browser.")
 
-    return PrefabApp(view=view, state={"office": "all"})
+    return app
 ```
 
 Three new ideas here:
