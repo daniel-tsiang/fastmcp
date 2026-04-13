@@ -62,6 +62,7 @@ class TestToolTracing:
         span = spans[0]
         assert span.name == "tools/call failing_tool"
         assert span.status.status_code == StatusCode.ERROR
+        assert span.status.description is not None
         assert "Something went wrong" in span.status.description
         assert span.attributes is not None
         assert span.attributes["error.type"] == "tool_error"
