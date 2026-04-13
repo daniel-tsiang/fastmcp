@@ -621,9 +621,7 @@ class FastMCP(
                 )
 
             # Core logic: list tools
-            with server_span(
-                "tools/list", "tools/list", self.name, "tool", ""
-            ):
+            with server_span("tools/list", "tools/list", self.name, "tool", ""):
                 # Get all tools, apply session transforms, then filter enabled
                 # and model-visible (app-only tools are hidden from the model).
                 tools = list(await super().list_tools())
@@ -1028,9 +1026,7 @@ class FastMCP(
                 )
 
             # Core logic: list prompts
-            with server_span(
-                "prompts/list", "prompts/list", self.name, "prompt", ""
-            ):
+            with server_span("prompts/list", "prompts/list", self.name, "prompt", ""):
                 # Get all prompts, apply session transforms, then filter enabled
                 prompts = list(await super().list_prompts())
                 prompts = await apply_session_transforms(prompts)
