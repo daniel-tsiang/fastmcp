@@ -95,14 +95,12 @@ def server_span(
             yield span
         except Exception as e:
             if span.is_recording():
-                span.set_attribute(
-                    "error.type",
-                    "tool_error"
-                    if type(e).__qualname__ == "ToolError"
-                    else type(e).__qualname__,
-                )
-            span.record_exception(e)
-            span.set_status(Status(StatusCode.ERROR, str(e)))
+                from fastmcp.exceptions import ToolError as _ToolError
+
+                error_type = "tool_error" if isinstance(e, _ToolError) else type(e).__qualname__
+                span.set_attribute("error.type", error_type)
+                span.record_exception(e)
+                span.set_status(Status(StatusCode.ERROR, str(e)))
             raise
 
 
@@ -132,14 +130,12 @@ def delegate_span(
             yield span
         except Exception as e:
             if span.is_recording():
-                span.set_attribute(
-                    "error.type",
-                    "tool_error"
-                    if type(e).__qualname__ == "ToolError"
-                    else type(e).__qualname__,
-                )
-            span.record_exception(e)
-            span.set_status(Status(StatusCode.ERROR, str(e)))
+                from fastmcp.exceptions import ToolError as _ToolError
+
+                error_type = "tool_error" if isinstance(e, _ToolError) else type(e).__qualname__
+                span.set_attribute("error.type", error_type)
+                span.record_exception(e)
+                span.set_status(Status(StatusCode.ERROR, str(e)))
             raise
 
 

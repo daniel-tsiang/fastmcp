@@ -170,7 +170,7 @@ class ClientToolsMixin:
 
             # Reflect tool-level errors on the span so callers see ERROR
             # status even though the MCP protocol call itself succeeded.
-            if result.isError:
+            if result.isError and span.is_recording():
                 span.set_attribute("error.type", "tool_error")
                 description = ""
                 if result.content and isinstance(
