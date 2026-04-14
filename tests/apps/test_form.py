@@ -168,3 +168,24 @@ class TestBackfillBooleanDefaults:
         data = {"title": "Note"}
         result = _backfill_boolean_defaults(NoteForm, data)
         assert "content" not in result
+
+    def test_optional_bool_backfilled(self):
+        class ModelWithOptionalBool(pydantic.BaseModel):
+            flag: bool = False
+            opt: bool | None = False
+
+        data: dict = {}
+        _backfill_boolean_defaults(ModelWithOptionalBool, data)
+        assert "flag" in data
+        assert "opt" in data
+        assert data["flag"] is False
+        assert data["opt"] is False
+
+    def test_optional_bool_without_default(self):
+        class ModelWithRequiredOptionalBool(pydantic.BaseModel):
+            opt: bool | None
+
+        data: dict = {}
+        _backfill_boolean_defaults(ModelWithRequiredOptionalBool, data)
+        assert "opt" in data
+        assert data["opt"] is False

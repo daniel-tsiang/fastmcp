@@ -1,6 +1,7 @@
 """Error handling middleware for consistent error responses and tracking."""
 
 import asyncio
+import inspect
 import logging
 import traceback
 from collections.abc import Callable
@@ -38,7 +39,7 @@ class ErrorHandlingMiddleware(Middleware):
         self,
         logger: logging.Logger | None = None,
         include_traceback: bool = False,
-        error_callback: Callable[[Exception, MiddlewareContext], None] | None = None,
+        error_callback: Callable[[Exception, MiddlewareContext], Any] | None = None,
         transform_errors: bool = True,
     ):
         """Initialize error handling middleware.
@@ -55,7 +56,7 @@ class ErrorHandlingMiddleware(Middleware):
         self.transform_errors = transform_errors
         self.error_counts = {}
 
-    def _log_error(self, error: Exception, context: MiddlewareContext) -> None:
+    async def _log_error(self, error: Exception, context: MiddlewareContext) -> None:
         """Log error with appropriate detail level."""
         error_type = type(error).__name__
         method = context.method or "unknown"
@@ -74,7 +75,9 @@ class ErrorHandlingMiddleware(Middleware):
         # Call custom error callback if provided
         if self.error_callback:
             try:
-                self.error_callback(error, context)
+                result = self.error_callback(error, context)
+                if inspect.isawaitable(result):
+                    await result
             except Exception as callback_error:
                 self.logger.error(f"Error in error callback: {callback_error}")
 
@@ -122,7 +125,7 @@ class ErrorHandlingMiddleware(Middleware):
         try:
             return await call_next(context)
         except Exception as error:
-            self._log_error(error, context)
+            await self._log_error(error, context)
 
             # Transform and re-raise
             transformed_error = self._transform_error(error, context)

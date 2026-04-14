@@ -25,6 +25,8 @@ Usage::
 from __future__ import annotations
 
 import json
+import types
+import typing
 from collections.abc import Callable
 from typing import Any
 
@@ -54,6 +56,16 @@ import pydantic
 from fastmcp.apps.app import FastMCPApp
 
 
+def _is_bool_type(annotation: Any) -> bool:
+    """Check if annotation is bool or Optional[bool]."""
+    if annotation is bool:
+        return True
+    origin = typing.get_origin(annotation)
+    if origin is typing.Union or isinstance(annotation, types.UnionType):
+        return bool in typing.get_args(annotation)
+    return False
+
+
 def _backfill_boolean_defaults(
     model: type[pydantic.BaseModel],
     data: dict[str, Any],
@@ -67,7 +79,7 @@ def _backfill_boolean_defaults(
     for name, field_info in model.model_fields.items():
         if name in data:
             continue
-        if field_info.annotation is bool:
+        if _is_bool_type(field_info.annotation):
             if field_info.default is not pydantic.fields.PydanticUndefined:
                 data[name] = field_info.default
             else:

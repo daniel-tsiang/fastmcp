@@ -58,48 +58,48 @@ class TestErrorHandlingMiddleware:
         assert middleware.error_callback is callback
         assert middleware.transform_errors is False
 
-    def test_log_error_basic(self, mock_context, caplog):
+    async def test_log_error_basic(self, mock_context, caplog):
         """Test basic error logging."""
         middleware = ErrorHandlingMiddleware()
         error = ValueError("test error")
 
         with caplog.at_level(logging.ERROR):
-            middleware._log_error(error, mock_context)
+            await middleware._log_error(error, mock_context)
 
         assert "Error in test_method: ValueError: test error" in caplog.text
         assert "ValueError:test_method" in middleware.error_counts
         assert middleware.error_counts["ValueError:test_method"] == 1
 
-    def test_log_error_with_traceback(self, mock_context, caplog):
+    async def test_log_error_with_traceback(self, mock_context, caplog):
         """Test error logging with traceback."""
         middleware = ErrorHandlingMiddleware(include_traceback=True)
         error = ValueError("test error")
 
         with caplog.at_level(logging.ERROR):
-            middleware._log_error(error, mock_context)
+            await middleware._log_error(error, mock_context)
 
         assert "Error in test_method: ValueError: test error" in caplog.text
         # The traceback is added to the log message
         assert "Error in test_method: ValueError: test error" in caplog.text
 
-    def test_log_error_with_callback(self, mock_context):
+    async def test_log_error_with_callback(self, mock_context):
         """Test error logging with callback."""
         callback = MagicMock()
         middleware = ErrorHandlingMiddleware(error_callback=callback)
         error = ValueError("test error")
 
-        middleware._log_error(error, mock_context)
+        await middleware._log_error(error, mock_context)
 
         callback.assert_called_once_with(error, mock_context)
 
-    def test_log_error_callback_exception(self, mock_context, caplog):
+    async def test_log_error_callback_exception(self, mock_context, caplog):
         """Test error logging when callback raises exception."""
         callback = MagicMock(side_effect=RuntimeError("callback error"))
         middleware = ErrorHandlingMiddleware(error_callback=callback)
         error = ValueError("test error")
 
         with caplog.at_level(logging.ERROR):
-            middleware._log_error(error, mock_context)
+            await middleware._log_error(error, mock_context)
 
         assert "Error in error callback: callback error" in caplog.text
 
@@ -236,16 +236,16 @@ class TestErrorHandlingMiddleware:
         assert "Invalid params: test error" in exc_info.value.error.message
         assert "Error in test_method: ToolError: test error" in caplog.text
 
-    def test_get_error_stats(self, mock_context):
+    async def test_get_error_stats(self, mock_context):
         """Test getting error statistics."""
         middleware = ErrorHandlingMiddleware()
         error1 = ValueError("error1")
         error2 = ValueError("error2")
         error3 = RuntimeError("error3")
 
-        middleware._log_error(error1, mock_context)
-        middleware._log_error(error2, mock_context)
-        middleware._log_error(error3, mock_context)
+        await middleware._log_error(error1, mock_context)
+        await middleware._log_error(error2, mock_context)
+        await middleware._log_error(error3, mock_context)
 
         stats = middleware.get_error_stats()
         assert stats["ValueError:test_method"] == 2
@@ -565,6 +565,27 @@ class TestErrorHandlingMiddlewareIntegration:
 
         # Error should still exist (may be wrapped by FastMCP)
         assert exc_info.value is not None
+
+    async def test_async_error_callback(self):
+        """Test that async error callbacks are properly awaited."""
+        called = False
+
+        async def callback(error, context):
+            nonlocal called
+            called = True
+
+        mcp = FastMCP("test")
+        mcp.add_middleware(ErrorHandlingMiddleware(error_callback=callback))
+
+        @mcp.tool
+        def bad_tool() -> str:
+            raise ValueError("test")
+
+        async with Client(mcp) as client:
+            with pytest.raises(Exception):
+                await client.call_tool("bad_tool")
+
+        assert called, "Async callback was not awaited"
 
 
 class TestRetryMiddlewareIntegration:
