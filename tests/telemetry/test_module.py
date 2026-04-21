@@ -104,6 +104,18 @@ class TestExtractTraceContext:
         assert span_ctx.is_valid
         assert format(span_ctx.trace_id, "032x") == "0af7651916cd43dd8448eb211c80319c"
 
+    def test_baggage_only_meta_preserves_current_span(
+        self, trace_exporter: InMemorySpanExporter
+    ):
+        tracer = get_tracer()
+        with tracer.start_as_current_span("current") as current_span:
+            ctx = extract_trace_context({"baggage": "userId=alice"})
+
+        span_ctx = trace.get_current_span(ctx).get_span_context()
+        assert span_ctx.is_valid
+        assert span_ctx.span_id == current_span.get_span_context().span_id
+        assert baggage.get_baggage("userId", context=ctx) == "alice"
+
     def test_none_meta_returns_current_context(
         self, trace_exporter: InMemorySpanExporter
     ):

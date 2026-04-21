@@ -145,12 +145,13 @@ def extract_trace_context(meta: dict[str, Any] | None) -> Context:
         meta: The meta dict from an MCP request (ctx.request_context.meta)
 
     Returns:
-        An OpenTelemetry Context with the extracted trace context,
-        or the current context if no trace context was propagated
+        An OpenTelemetry Context with propagated trace context and baggage
+        merged onto the current context, or the current context if no
+        propagation keys were present.
     """
     carrier = get_trace_context_carrier(meta)
     if carrier:
-        return propagate.extract(carrier)
+        return propagate.extract(carrier, context=otel_context.get_current())
     return otel_context.get_current()
 
 
