@@ -766,8 +766,9 @@ class FastMCP(
             if id(plugin) in seen:
                 continue
             seen.add(id(plugin))
-            origin = f"plugin {plugin.meta.name!r}"
-            sources.extend((origin, contrib) for contrib in plugin.auth())
+            contrib = plugin.auth()
+            if contrib is not None:
+                sources.append((f"plugin {plugin.meta.name!r}", contrib))
 
         if not sources:
             return None

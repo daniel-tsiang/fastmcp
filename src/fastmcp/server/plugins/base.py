@@ -686,8 +686,8 @@ class Plugin(Generic[C]):
         """Return component providers."""
         return []
 
-    def auth(self) -> list[AuthProvider]:
-        """Return auth providers to contribute to the server's auth slot.
+    def auth(self) -> AuthProvider | None:
+        """Return the auth provider this plugin contributes, or `None`.
 
         Any `AuthProvider` subclass is accepted — a `TokenVerifier`, a
         full OAuth server (`OAuthProvider` / `RemoteAuthProvider` /
@@ -703,16 +703,16 @@ class Plugin(Generic[C]):
         config knob (conventionally `enable_auth: bool = True`) so users
         who want the plugin's other features but prefer different auth
         can disable it without framework-level composition rules. Return
-        an empty list when the knob is off.
+        `None` when the knob is off.
 
         For genuine multi-source auth, users construct a `MultiAuth`
         explicitly and pass it as the single `auth=` arg — the framework
         never auto-composes, because silent composition produces
         surprising behavior at token-verification time.
 
-        The default returns an empty list.
+        The default returns `None`.
         """
-        return []
+        return None
 
     def capabilities(self) -> dict[str, Any]:
         """Return a partial `ServerCapabilities` dict to merge into the server's capabilities.

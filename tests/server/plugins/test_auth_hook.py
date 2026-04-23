@@ -40,11 +40,11 @@ async def _enter_lifecycle(mcp: FastMCP) -> None:
 
 
 class TestDefaultHook:
-    def test_plugin_auth_defaults_to_empty_list(self):
+    def test_plugin_auth_defaults_to_none(self):
         class P(Plugin):
             meta = PluginMeta(name="p")
 
-        assert P().auth() == []
+        assert P().auth() is None
 
 
 class TestSingleSource:
@@ -56,8 +56,8 @@ class TestSingleSource:
         class P(Plugin):
             meta = PluginMeta(name="p")
 
-            def auth(self) -> list[AuthProvider]:
-                return [v]
+            def auth(self) -> AuthProvider | None:
+                return v
 
         mcp = FastMCP("t", plugins=[P()])
         await _enter_lifecycle(mcp)
@@ -86,14 +86,14 @@ class TestMultipleSourcesRejected:
         class P1(Plugin):
             meta = PluginMeta(name="p1")
 
-            def auth(self) -> list[AuthProvider]:
-                return [v1]
+            def auth(self) -> AuthProvider | None:
+                return v1
 
         class P2(Plugin):
             meta = PluginMeta(name="p2")
 
-            def auth(self) -> list[AuthProvider]:
-                return [v2]
+            def auth(self) -> AuthProvider | None:
+                return v2
 
         with pytest.raises(PluginError, match="Multiple auth sources"):
             FastMCP("t", plugins=[P1(), P2()])
@@ -106,8 +106,8 @@ class TestMultipleSourcesRejected:
         class P(Plugin):
             meta = PluginMeta(name="p")
 
-            def auth(self) -> list[AuthProvider]:
-                return [plugin_v]
+            def auth(self) -> AuthProvider | None:
+                return plugin_v
 
         with pytest.raises(PluginError, match="Multiple auth sources"):
             FastMCP("t", auth=user_v, plugins=[P()])
@@ -120,14 +120,14 @@ class TestMultipleSourcesRejected:
         class P1(Plugin):
             meta = PluginMeta(name="p1")
 
-            def auth(self) -> list[AuthProvider]:
-                return [s1]
+            def auth(self) -> AuthProvider | None:
+                return s1
 
         class P2(Plugin):
             meta = PluginMeta(name="p2")
 
-            def auth(self) -> list[AuthProvider]:
-                return [s2]
+            def auth(self) -> AuthProvider | None:
+                return s2
 
         with pytest.raises(PluginError, match="Multiple auth sources"):
             FastMCP("t", plugins=[P1(), P2()])
@@ -140,14 +140,14 @@ class TestMultipleSourcesRejected:
         class Alpha(Plugin):
             meta = PluginMeta(name="alpha")
 
-            def auth(self) -> list[AuthProvider]:
-                return [v1]
+            def auth(self) -> AuthProvider | None:
+                return v1
 
         class Beta(Plugin):
             meta = PluginMeta(name="beta")
 
-            def auth(self) -> list[AuthProvider]:
-                return [v2]
+            def auth(self) -> AuthProvider | None:
+                return v2
 
         with pytest.raises(PluginError) as exc_info:
             FastMCP("t", plugins=[Alpha(), Beta()])
@@ -173,8 +173,8 @@ class TestRebuildOnEphemeralTeardown:
         class Ephemeral(Plugin):
             meta = PluginMeta(name="temp")
 
-            def auth(self) -> list[AuthProvider]:
-                return [ephemeral_v]
+            def auth(self) -> AuthProvider | None:
+                return ephemeral_v
 
         async with contextlib.AsyncExitStack() as stack:
             await mcp._enter_plugin_contexts(stack)
@@ -205,8 +205,8 @@ class TestEagerComposition:
         class P(Plugin):
             meta = PluginMeta(name="p")
 
-            def auth(self) -> list[AuthProvider]:
-                return [v]
+            def auth(self) -> AuthProvider | None:
+                return v
 
         mcp = FastMCP("t", plugins=[P()])
         # No lifespan entered yet — construction only.
@@ -222,8 +222,8 @@ class TestEagerComposition:
         class P(Plugin):
             meta = PluginMeta(name="p")
 
-            def auth(self) -> list[AuthProvider]:
-                return [v]
+            def auth(self) -> AuthProvider | None:
+                return v
 
         mcp.add_plugin(P())
         assert mcp.auth is v
@@ -242,8 +242,8 @@ class TestAddPluginAtomicity:
         class P1(Plugin):
             meta = PluginMeta(name="p1")
 
-            def auth(self) -> list[AuthProvider]:
-                return [v1]
+            def auth(self) -> AuthProvider | None:
+                return v1
 
         class P2(Plugin):
             meta = PluginMeta(name="p2")
@@ -252,8 +252,8 @@ class TestAddPluginAtomicity:
                 super().__init__()
                 self._v = _verifier("two")
 
-            def auth(self) -> list[AuthProvider]:
-                return [self._v]
+            def auth(self) -> AuthProvider | None:
+                return self._v
 
         p1 = P1()
         mcp = FastMCP("t", plugins=[p1])
@@ -283,8 +283,8 @@ class TestDuplicateInstanceDedup:
                 super().__init__()
                 self._v = _verifier()
 
-            def auth(self) -> list[AuthProvider]:
-                return [self._v]
+            def auth(self) -> AuthProvider | None:
+                return self._v
 
         p = Contrib()
         # Must not raise even though `p` is in `self.plugins` twice.
