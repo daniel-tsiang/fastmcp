@@ -4,13 +4,14 @@ import logging
 
 import mcp.types
 import pytest
-from mcp.types import TextContent
+from mcp.types import TextContent, ToolUseContent
 from pydantic import AnyUrl
 
 from fastmcp.client import Client
 from fastmcp.client.mixins.tools import _parse_call_tool_result
 from fastmcp.client.transports import FastMCPTransport
 from fastmcp.exceptions import PromptError, ResourceError, ToolError
+from fastmcp.server.sampling.run import SamplingTool, execute_tools
 from fastmcp.server.server import FastMCP
 
 
@@ -407,9 +408,6 @@ class TestLogLevel:
 
     async def test_sampling_tool_error_with_custom_log_level(self, caplog):
         """ToolError with custom log_level in sampling should log at specified level."""
-        from mcp.types import ToolUseContent
-
-        from fastmcp.server.sampling.run import SamplingTool, execute_tools
 
         async def custom_level_sampling_tool(x: int) -> int:
             raise ToolError("Expected sampling error", log_level=logging.WARNING)
